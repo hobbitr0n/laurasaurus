@@ -1,3 +1,5 @@
+const debugEl = document.getElementById("debug");
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -47,6 +49,7 @@
   </style>
 </head>
 <body>
+  <div id="debug" style="margin-top:10px;color:#bbb;font-size:12px;max-width:680px;word-break:break-word;"></div>
   <div class="bg"></div>
   <div class="wrap">
     <div class="panel">
@@ -217,16 +220,29 @@
     }
 
 
+const API_URL = "https://script.google.com/macros/s/AKfycbxaU6NnFDUIaSConHZjQovxXFMUUzZ1dbygKsYHVg4xO3HjMH0iTw3RosZ9SnRlTxHsMw/exec?api=1";
+
 async function loadLibrary(){
   hintEl.textContent = "Loading your Library sheet…";
+  debugEl.textContent = "Calling: " + API_URL;
+
   try{
-    const res = await fetch(API_URL + "&t=" + Date.now(), { cache: "no-store" });
+    const res = await fetch(API_URL + "&t=" + Date.now(), {
+      cache: "no-store",
+      redirect: "follow",
+      credentials: "omit"
+    });
 
-    const contentType = res.headers.get("content-type") || "";
+    debugEl.textContent += `\nStatus: ${res.status}`;
+    debugEl.textContent += `\nContent-Type: ${res.headers.get("content-type") || "(none)"}`;
+
     const text = await res.text();
+    debugEl.textContent += `\nFirst 120 chars: ${text.slice(0,120).replace(/\s+/g," ")}`;
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,80)}`);
-    if (!contentType.includes("application/json")) throw new Error(`Expected JSON, got ${contentType}: ${text.slice(0,80)}`);
+    // If it isn't JSON, stop here with a clear message
+    if (!(res.headers.get("content-type") || "").includes("application/json")) {
+      throw new Error("Not JSON (likely redirect/auth/CORS). See debug output above.");
+    }
 
     const json = JSON.parse(text);
     if (!json.ok) throw new Error("API returned ok=false");
@@ -245,10 +261,12 @@ async function loadLibrary(){
     hintEl.textContent = "Type to search instantly, or click choices to filter.";
     render();
   } catch(e){
-    hintEl.textContent = "Library load failed: " + (e?.message || String(e));
+    hintEl.textContent = "Library load failed.";
+    debugEl.textContent += `\nERROR: ${e?.message || String(e)}`;
     console.error(e);
   }
 }
+
 
 
 

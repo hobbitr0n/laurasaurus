@@ -213,41 +213,23 @@
       }
     }
 
+const API_URL = "https://script.google.com/macros/s/AKfycbxaU6NnFDUIaSConHZjQovxXFMUUzZ1dbygKsYHVg4xO3HjMH0iTw3RosZ9SnRlTxHsMw/exec?api=1";
+
 async function loadLibrary(){
-  const apiUrl = new URL(window.location.href);
-  apiUrl.searchParams.set("api", "1");
-  apiUrl.searchParams.set("t", String(Date.now())); // cache-buster
-
-  // Show the actual API url we’re calling
-  hintEl.textContent = "Loading Library…";
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout
-
+  hintEl.textContent = "Loading your Library sheet…";
   try{
-    const res = await fetch(apiUrl.toString(), {
-      cache: "no-store",
-      redirect: "follow",
-      signal: controller.signal
-    });
+    const res = await fetch(API_URL + "&t=" + Date.now(), { cache: "no-store" });
 
     const contentType = res.headers.get("content-type") || "";
-
-    // Read text first so we can show useful errors
     const text = await res.text();
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}. First chars: ${text.slice(0, 80)}`);
-    }
-
-    if (!contentType.includes("application/json")) {
-      throw new Error(`Expected JSON, got ${contentType}. First chars: ${text.slice(0, 80)}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0,80)}`);
+    if (!contentType.includes("application/json")) throw new Error(`Expected JSON, got ${contentType}: ${text.slice(0,80)}`);
 
     const json = JSON.parse(text);
     if (!json.ok) throw new Error("API returned ok=false");
 
-    LIBRARY = (json.rows||[]).map(r => ({
+    LIBRARY = (json.rows || []).map(r => ({
       ...r,
       Title: r.Title || r.Display || "",
       Display: r.Display || r.Title || "",
@@ -260,13 +242,12 @@ async function loadLibrary(){
 
     hintEl.textContent = "Type to search instantly, or click choices to filter.";
     render();
-  } catch (e){
+  } catch(e){
     hintEl.textContent = "Library load failed: " + (e?.message || String(e));
-    console.error("Library load failed. URL was:", apiUrl.toString(), e);
-  } finally {
-    clearTimeout(timeout);
+    console.error(e);
   }
 }
+
 
 
   </script>

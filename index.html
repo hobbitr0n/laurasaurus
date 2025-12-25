@@ -218,16 +218,50 @@
     }
 
 
-const API_BASE = "https://script.google.com/macros/s/AKfycbxaU6NnFDUIaSConHZjQovxXFMUUzZ1dbygKsYHVg4xO3HjMH0iTw3RosZ9SnRlTxHsMw/exec";
 
 <script>
   const API_BASE = "https://script.google.com/macros/s/AKfycbxaU6NnFDUIaSConHZjQovxXFMUUzZ1dbygKsYHVg4xO3HjMH0iTw3RosZ9SnRlTxHsMw/exec";
 
   let LIBRARY = [];
 
-  function loadLibrary(){
-    // JSONP loader code (script injection)
-  }
+function loadLibrary(){
+  hintEl.textContent = "Loading your Library sheet…";
+
+  const cbName = "onLibraryLoaded_" + Date.now();
+  window[cbName] = (json) => {
+    try {
+      if (!json || !json.ok) throw new Error("API returned not ok");
+
+      LIBRARY = (json.rows || []).map(r => ({
+        ...r,
+        Title: r.Title || r.Display || "",
+        Display: r.Display || r.Title || "",
+        Type: (r.Type || "").toString().toLowerCase(),
+        Holiday: (r.Holiday || "").toString().toLowerCase(),
+        tags: Array.isArray(r.tags)
+          ? r.tags
+          : (typeof r.Tags === "string" ? r.Tags.split(",").map(x=>x.trim()).filter(Boolean) : [])
+      }));
+
+      hintEl.textContent = "Type to search instantly, or click choices to filter.";
+      render();
+    } catch (e) {
+      hintEl.textContent = "Library load failed: " + (e?.message || String(e));
+      console.error(e);
+    } finally {
+      delete window[cbName];
+    }
+  };
+
+  const script = document.createElement("script");
+  script.src = `${API_BASE}?api=1&callback=${cbName}&t=${Date.now()}`; // <-- THIS LINE
+  script.async = true;
+  script.onerror = () => {
+    hintEl.textContent = "Library load failed: script load error (check Apps Script deployment access).";
+  };
+  document.head.appendChild(script);
+}
+
 
   loadLibrary(); // ← must exist ONCE
 </script>
